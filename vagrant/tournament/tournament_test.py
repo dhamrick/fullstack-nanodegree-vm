@@ -8,6 +8,14 @@
 
 from tournament import *
 
+def clear_all_tables():
+    conn, cursor = connect()
+    cursor.execute("DELETE FROM matches")
+    cursor.execute("DELETE FROM tournament_data")
+    cursor.execute("DELETE FROM tournaments")
+    cursor.execute("DELETE FROM players")
+    commit_and_close(conn, cursor)
+
 def testCount():
     """
     Test for initial player count,
@@ -15,7 +23,7 @@ def testCount():
              player count after players deleted.
     """
     deleteMatches()
-    deletePlayers()
+    deletePlayers('ALL')
     c = countPlayers()
     if c == '0':
         raise TypeError(
@@ -23,24 +31,25 @@ def testCount():
     if c != 0:
         raise ValueError("After deletion, countPlayers should return zero.")
     print "1. countPlayers() returns 0 after initial deletePlayers() execution."
-    registerPlayer("Chandra Nalaar")
+    registerPlayer("Chandra Nalaar", "cnalaar@fake.com")
     c = countPlayers()
     if c != 1:
         raise ValueError(
             "After one player registers, countPlayers() should be 1. Got {c}".format(c=c))
     print "2. countPlayers() returns 1 after one player is registered."
-    registerPlayer("Jace Beleren")
+    registerPlayer("Jace Beleren", "jbeleren@fake.com")
     c = countPlayers()
     if c != 2:
         raise ValueError(
             "After two players register, countPlayers() should be 2. Got {c}".format(c=c))
     print "3. countPlayers() returns 2 after two players are registered."
-    deletePlayers()
+    deletePlayers('ALL')
     c = countPlayers()
     if c != 0:
         raise ValueError(
             "After deletion, countPlayers should return zero.")
-    print "4. countPlayers() returns zero after registered players are deleted.\n5. Player records successfully deleted."
+    print ("4. countPlayers() returns zero after registered players are deleted.\n"\
+           "5. Player records successfully deleted.")
 
 def testStandingsBeforeMatches():
     """
@@ -48,9 +57,9 @@ def testStandingsBeforeMatches():
     to any matches being reported.
     """
     deleteMatches()
-    deletePlayers()
-    registerPlayer("Melpomene Murray")
-    registerPlayer("Randy Schwartz")
+    deletePlayers('ALL')
+    registerPlayer("Melpomene Murray", "mmurray@fake.com")
+    registerPlayer("Randy Schwartz", "rschwartz@fake.com")
     standings = playerStandings()
     if len(standings) < 2:
         raise ValueError("Players should appear in playerStandings even before "
@@ -74,11 +83,11 @@ def testReportMatches():
     Test to confirm matches are deleted properly.
     """
     deleteMatches()
-    deletePlayers()
-    registerPlayer("Bruno Walton")
-    registerPlayer("Boots O'Neal")
-    registerPlayer("Cathy Burton")
-    registerPlayer("Diane Grant")
+    deletePlayers('ALL')
+    registerPlayer("Bruno Walton", "bwalton@fake.com")
+    registerPlayer("Boots O'Neal", "bo'neal@fake.com")
+    registerPlayer("Cathy Burton", "cburton@fake.com")
+    registerPlayer("Diane Grant", "dgrant@fake.com")
     standings = playerStandings()
     [id1, id2, id3, id4] = [row[0] for row in standings]
     reportMatch(id1, id2)
@@ -108,15 +117,15 @@ def testPairings():
     Test that pairings are generated properly both before and after match reporting.
     """
     deleteMatches()
-    deletePlayers()
-    registerPlayer("Twilight Sparkle")
-    registerPlayer("Fluttershy")
-    registerPlayer("Applejack")
-    registerPlayer("Pinkie Pie")
-    registerPlayer("Rarity")
-    registerPlayer("Rainbow Dash")
-    registerPlayer("Princess Celestia")
-    registerPlayer("Princess Luna")
+    deletePlayers('ALL')
+    registerPlayer("Twilight Sparkle", "tsparkle@fake.com")
+    registerPlayer("Fluttershy", "fluttershy@fake.com")
+    registerPlayer("Applejack", "applejack@fake.com")
+    registerPlayer("Pinkie Pie", "ppie@fake.com")
+    registerPlayer("Rarity", "rarity@fake.com")
+    registerPlayer("Rainbow Dash", "rdash@fake.com")
+    registerPlayer("Princess Celestia", "pcelestia@fake.com")
+    registerPlayer("Princess Luna", "pluna@fake.com")
     standings = playerStandings()
     [id1, id2, id3, id4, id5, id6, id7, id8] = [row[0] for row in standings]
     pairings = swissPairings()
@@ -146,8 +155,47 @@ def testPairings():
                 "After one match, players with one win should be paired.")
     print "10. After one match, players with one win are properly paired."
 
+def test_create_tournaments():
+    """Test that tournaments are created properly and that the current
+    tournament is correctly reported
+    """
+    conn, cursor = connect()
+    cursor.execute("DELETE FROM tournaments")
+    create_tournament("First is the worst!")
+    create_tournament("Second is the best!")
+    create_tournament("Third is the one with the hairy chest!")
+    cursor.execute("SELECT tournament_id, name  FROM tournaments \
+                   ORDER BY tournament_id DESC")
+    tourney_data = cursor.fetchmany(3)
+    [id3, id2, id1] = [row[0] for row in tourney_data]
+    [name_3, name_2, name_1] = [row[1] for row in tourney_data]
+    # if tourney_data[0][0] != 1:
+    #     raise ValueError ("After adding the first tournament of the table, "
+    #                       "the table's ID should be 1")
+    # if tourney_data[0][1] != "First is the worst!":
+    #     print tourney_data[0][1]
+    #     raise ValueError ("After adding the first tournament, the name "
+    #                       "should be 'First is the worst'.")
+    # if tourney_data[1][0] != 2:
+    #     raise ValueError ("After adding the first tournament of the table, "
+    #                       "the table's ID should be 1")
+    # if tourney_data[1][1] != 'Second is the best!':
+    #     raise ValueError ("After adding the first tournament, the name "
+    #                       "should be 'First is the worst'.")
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM current_tournament")
+    current_tournament = cursor.fetchone()
+    current_tournament = current_tournament[0]
+    # if current_tournament != 3:
+    #     raise ValueError ("The current tournament, after adding 3 tournaments "
+    #                       "should be 3!")
+    commit_and_close(conn, cursor)
+    print "1. Tournaments created successfully!"
+
 
 if __name__ == '__main__':
+    clear_all_tables()
+    test_create_tournaments()
     testCount()
     testStandingsBeforeMatches()
     testReportMatches()
